@@ -1,0 +1,48 @@
+<html>
+
+<head>
+<title>Solar System</title>
+
+<!-- Math -->
+<script src="Math/vector3.js"></script>
+<script src="Math/vector4.js"></script>
+<script src="Math/matrix4.js"></script>
+
+<!-- Utility -->
+<script src="Utility/time.js"></script>
+<script src="Utility/input.js"></script>
+<script src="Utility/camera.js"></script>
+<script src="Utility/orbit-camera.js"></script>
+<script src="Utility/utils-gl.js"></script>
+<script src="Utility/asset-loader.js"></script>
+
+<!-- Geometry -->
+<script src="Objects/geometry.js"></script>
+<script src="Objects/material.js"></script>
+<script src="Objects/astronomicalObjects.js"></script>
+
+<script src="app.js"></script>
+
+
+<link rel="icon" href="data:,">
+
+<style>
+    /* center the canvas on the screen */
+    #webgl-canvas {
+        border: solid;
+        display: block;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: auto;
+    }
+</style>
+</head>
+
+<body>
+    <canvas id="webgl-canvas" width="768" height="512"></canvas>
+</body>
+
+</html>
