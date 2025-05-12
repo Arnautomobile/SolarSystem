@@ -21,28 +21,76 @@
 <script src="Objects/material.js"></script>
 <script src="Objects/astronomicalObjects.js"></script>
 
-<script src="app.js"></script>
-
-
-<link rel="icon" href="data:,">
 
 <style>
-    /* center the canvas on the screen */
     #webgl-canvas {
         border: solid;
         display: block;
         position: absolute;
         top: 0;
         bottom: 0;
-        left: 0;
+        left: 400;
         right: 0;
         margin: auto;
     }
+
+    body {
+        font-family: Arial, sans-serif;
+        padding: 1em;
+    }
+
+    .guide-text {
+        max-width: 300px;
+    }
+
+    .slider-container {
+        max-width: 200px;
+        margin-top: 20px;
+    }
+
+    .value-label {
+        font-size: 1.1em;
+        margin-top: 0.7em;
+        margin-bottom: 0.2em;
+    }
+
+    input[type="range"] {
+        width: 100%;
+    }
 </style>
+
 </head>
 
 <body>
-    <canvas id="webgl-canvas" width="768" height="512"></canvas>
+    <canvas id="webgl-canvas" width="800" height="550"></canvas>
+    
+    <div class="guide-text">
+        Keys 1-8 to switch orbited planet, 9 to orbit the Moon, 0 for the sun<br><br>
+        SPACE to switch into free camera and WASDQE to move around<br><br>
+        R-F to change camera speed<br>
+        T-G to change camera FOV<br>
+
+    </div>
+
+    <div class="slider-container">
+        <div class="value-label">
+            1 sec = <span id="timeValue">0</span>
+        </div>
+        <input type="range" id="timeSlider" min="0" max="100" step="0.2" value="1" />
+
+        <div class="value-label">
+            FOV : <span id="fovValue">45</span>
+        </div>
+        <input type="range" id="fovSlider" min="5" max="150" step="1" value="45" />
+    </div>
+
+    
+
+    <div class="fov-slider-container">
+        
+    </div>
+    
+    <script src="app.js"></script>
 </body>
 
 </html>

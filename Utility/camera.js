@@ -4,7 +4,7 @@ class Camera {
         this.fov = 45;
         this.yaw = 0;
         this.pitch = 0;
-        this.moveSpeed = 10;
+        this.speed = 10;
         this.position = new Vector3(0,5,20);
         this.worldMatrix = new Matrix4();
 
@@ -15,7 +15,7 @@ class Camera {
 
         // -------------------------------------------------------------------------
         document.onmousedown = (evt) => {
-            if (evt.button == 0) {
+            if (evt.button != 0) {
                 isDragging = true;
                 lastMouseX = evt.pageX;
                 lastMouseY = evt.pageY;
@@ -68,7 +68,7 @@ class Camera {
     
     // -----------------------------------------------------------------------------
     update(deltaTime) {
-        this.positionInput(deltaTime * this.moveSpeed);
+        this.positionInput(deltaTime * this.speed);
         this.fovInput(deltaTime * 30);
         this.speedInput(deltaTime * 30);
 
@@ -112,19 +112,20 @@ class Camera {
                 this.fov = 150;
             }
         }
+        updateFovDisplay();
     }
 
     speedInput(increment) {
         if (this.input.r) {
-            this.moveSpeed += increment;
-            if (this.moveSpeed > 50) {
-                this.moveSpeed = 50;
+            this.speed += increment;
+            if (this.speed > 50) {
+                this.speed = 50;
             }
         }
         if (this.input.f) {
-            this.moveSpeed -= increment;
-            if (this.moveSpeed < 1) {
-                this.moveSpeed = 1;
+            this.speed -= increment;
+            if (this.speed < 1) {
+                this.speed = 1;
             }
         }
     }

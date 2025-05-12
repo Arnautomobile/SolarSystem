@@ -1,30 +1,51 @@
 'use strict'
 
-let gl;
-let planetShaderProgram;
-let sunShaderProgram;
-
 const time = new Time();
 const input = new Input();
 const assetLoader = new AssetLoader();
 const projectionMatrix = new Matrix4();
 
-let sun;
-const planets = [];
-const moons = [];
+
+let timeSpeed = 1;
+const timeSlider = document.getElementById("timeSlider");
+const timeDisplay = document.getElementById("timeValue");
+
+timeSlider.addEventListener("input", () => {
+    timeSpeed = timeSlider.valueAsNumber;
+    timeDisplay.textContent = timeSpeed + " days";
+});
 
 let camera = new OrbitCamera(input);
+const fovSlider = document.getElementById("fovSlider");
+const fovDisplay = document.getElementById("fovValue");
+
+fovSlider.addEventListener("input", () => {
+    camera.fov = fovSlider.valueAsNumber;
+    updateFovDisplay();
+});
+
+function updateFovDisplay() {
+    const fov = parseInt(camera.fov)
+    fovSlider.value = fov;
+    fovDisplay.textContent = fov;
+}
+
+
+let gl;
+let sun;
+let sunShaderProgram;
+let planetShaderProgram;
 let changedCamera = false;
 let cameraIsOrbit = true;
-let lightPosition = Vector3.zero.clone();
 
+const planets = [];
+const transparency = [];
 
 const assetList = [
     { name: 'planetTextVS', url: './Shaders/planet.vs.glsl', type: 'text' },
     { name: 'planetTextFS', url: './Shaders/planet.fs.glsl', type: 'text' },
     { name: 'sunTextVS', url: './Shaders/sun.vs.glsl', type: 'text' },
     { name: 'sunTextFS', url: './Shaders/sun.fs.glsl', type: 'text' },
-
     { name: 'sphereJSON', url: './Data/sphere.json', type: 'json' },
     { name: 'waterNormalMap', url: './Data/waterNormalMap.jpeg', type: 'image' },
     { name: 'sun', url: './Data/sun.jpg', type: 'image' },
@@ -37,6 +58,12 @@ const assetList = [
     { name: 'uranus', url: './Data/uranus.jpg', type: 'image' },
     { name: 'neptune', url: './Data/neptune.jpg', type: 'image' },
     { name: 'moon', url: './Data/moon.png', type: 'image' },
+    { name: 'skybox_px', url: './Data/SkyboxFaces/GalaxyTex_PositiveX.png', type: 'image' },
+    { name: 'skybox_nx', url: './Data/SkyboxFaces/GalaxyTex_NegativeX.png', type: 'image' },
+    { name: 'skybox_py', url: './Data/SkyboxFaces/GalaxyTex_PositiveY.png', type: 'image' },
+    { name: 'skybox_ny', url: './Data/SkyboxFaces/GalaxyTex_NegativeY.png', type: 'image' },
+    { name: 'skybox_pz', url: './Data/SkyboxFaces/GalaxyTex_PositiveZ.png', type: 'image' },
+    { name: 'skybox_nz', url: './Data/SkyboxFaces/GalaxyTex_NegativeZ.png', type: 'image' }
 ];
 
 
@@ -50,6 +77,7 @@ async function initialize() {
 
     createPlanetShaders();
     createSunShaders();
+    createSkyboxShaders();
 
     createScene();
     updateAndRender();
@@ -74,7 +102,6 @@ function createPlanetShaders() {
         worldMatrix: gl.getUniformLocation(planetShaderProgram, "uWorldMatrix"),
         viewMatrix: gl.getUniformLocation(planetShaderProgram, "uViewMatrix"),
         projectionMatrix: gl.getUniformLocation(planetShaderProgram, "uProjectionMatrix"),
-        lightPosition: gl.getUniformLocation(planetShaderProgram, "uLightPosition"),
         cameraPosition: gl.getUniformLocation(planetShaderProgram, "uCameraPosition"),
 
         texture: gl.getUniformLocation(planetShaderProgram, "uTexture"),
@@ -104,29 +131,68 @@ function createSunShaders() {
     };
 }
 
+function createSkyboxShaders() {
+    
+}
+
+function createSkyboxCubemap(gl, assets) {
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+
+    const faceInfos = [
+        { target: gl.TEXTURE_CUBE_MAP_POSITIVE_X, image: assets.skybox_px },
+        { target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X, image: assets.skybox_nx },
+        { target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y, image: assets.skybox_py },
+        { target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, image: assets.skybox_ny },
+        { target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z, image: assets.skybox_pz },
+        { target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, image: assets.skybox_nz },
+    ];
+
+    faceInfos.forEach((face) => {
+        gl.texImage2D(face.target, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, face.image);
+    });
+
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    return texture;
+}
+
+
+function rotationSpeed(days) {
+    // base time is 1 sec == 1 day in real world
+    // one rotation is 360 degrees so we divide it by the number of days to do it
+    return 360 / days;
+}
 
 function createScene() {
-    const assets = assetLoader.assets
-    sun = new Sun(gl, assets);
+    const assets = assetLoader.assets;
+    const sphere = assets.sphereJSON;
 
-    let mercury = new Planet(gl, assets.sphereJSON, new Matrix4().makeScale(0.01, 0.01, 0.01), 7, 0.6, 20, assets.mercury);
+    sun = new Sun(gl, assets);
+    camera.changeTarget(sun.geometry);
+
+    let mercury = new Planet(gl, sphere, 0.01, 11, 0, rotationSpeed(88), rotationSpeed(59), assets.mercury);
     planets.push(mercury);
-    let venus = new Planet(gl, assets.sphereJSON, new Matrix4().makeScale(0.014, 0.014, 0.014), 12, 0.7, 10, assets.venus);
+    let venus = new Planet(gl, sphere, 0.014, 17, 3, rotationSpeed(225), rotationSpeed(243), assets.venus);
     planets.push(venus);
-    let earth = new Planet(gl, assets.sphereJSON, new Matrix4().makeScale(0.015, 0.015, 0.015), 16, 0.5, 50, assets.earth);
+    let earth = new Planet(gl, sphere, 0.015, 24, 23, rotationSpeed(365), rotationSpeed(1), assets.earth);
     planets.push(earth);
-    let mars = new Planet(gl, assets.sphereJSON, new Matrix4().makeScale(0.012, 0.012, 0.012), 21, 0.4, 40, assets.mars);
+    let mars = new Planet(gl, sphere, 0.012, 31, 25, rotationSpeed(687), rotationSpeed(1), assets.mars);
     planets.push(mars);
-    let jupiter = new Planet(gl, assets.sphereJSON, new Matrix4().makeScale(0.03, 0.03, 0.03), 28, 0.15, 10, assets.jupiter);
+    let jupiter = new Planet(gl, sphere, 0.04, 41, 3, rotationSpeed(4333), rotationSpeed(0.41), assets.jupiter);
     planets.push(jupiter);
-    let saturn = new Planet(gl, assets.sphereJSON, new Matrix4().makeScale(0.026, 0.026, 0.026), 35, 0.2, 15, assets.saturn);
+    let saturn = new Planet(gl, sphere, 0.03, 52, 27, rotationSpeed(10759), rotationSpeed(0.45), assets.saturn);
     planets.push(saturn);
-    let uranus = new Planet(gl, assets.sphereJSON, new Matrix4().makeScale(0.021, 0.021, 0.021), 42, 0.12, 7, assets.uranus);
+    let uranus = new Planet(gl, sphere, 0.025, 65, 97, rotationSpeed(30687), rotationSpeed(0.72), assets.uranus);
     planets.push(uranus);
-    let neptune = new Planet(gl, assets.sphereJSON, new Matrix4().makeScale(0.021, 0.021, 0.021), 46, 0.1, 5, assets.neptune);
+    let neptune = new Planet(gl, sphere, 0.025, 80, 28, rotationSpeed(60190), rotationSpeed(0.67), assets.neptune);
     planets.push(neptune);
 
-    
+    let moon = new Moon(gl, sphere, earth.geometry, 0.008, 3, 7, rotationSpeed(27), rotationSpeed(-27), assets.moon);
+    planets.push(moon);
 }
 
 
@@ -134,7 +200,13 @@ function updateAndRender() {
     requestAnimationFrame(updateAndRender);
     manageCamera();
 
-    time.update();
+    time.update(timeSpeed);
+
+    sun.update(time.seconds);
+    planets.forEach(planet => {
+        planet.update(time.seconds);
+    });
+
     camera.update(time.deltaTime);
     const cameraPos = camera.getPosition();
     const viewMatrix = camera.getViewMatrix();
@@ -143,6 +215,7 @@ function updateAndRender() {
     gl.viewport(0, 0, gl.canvasWidth, gl.canvasHeight);
     gl.clearColor(0.1, 0.1, 0.1, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
 
     // -------------------------------------------------------------------------------------------
     gl.useProgram(sunShaderProgram);
@@ -162,7 +235,6 @@ function updateAndRender() {
     gl.uniformMatrix4fv(uniforms.projectionMatrix, false, projectionMatrix.clone().transpose().elements);
 
     planets.forEach(planet => {
-        planet.update(time.seconds);
         planet.render(planetShaderProgram);
     });
 
@@ -191,7 +263,7 @@ function updateAndRender() {
 
 
 function manageCamera() {
-    if (input.shift && !changedCamera) {
+    if (input.space && !changedCamera) {
         if (cameraIsOrbit) {
             var newCamera = new Camera(input);
             newCamera.position = camera.getPosition();
@@ -199,7 +271,7 @@ function manageCamera() {
             newCamera.pitch = camera.pitch;
         }
         else {
-            var newCamera = new OrbitCamera(input);
+            var newCamera = new OrbitCamera(input, sun.geometry);
         }
 
         newCamera.fov = camera.fov;
@@ -207,7 +279,26 @@ function manageCamera() {
         changedCamera = true;
         cameraIsOrbit = !cameraIsOrbit;
     }
-    if (!input.shift && changedCamera) {
+    if (!input.space && changedCamera) {
         changedCamera = false;
+    }
+}
+
+
+function changePlanet(index) {
+    if (index < 0 || index > 9) return;
+
+    if (!cameraIsOrbit) {
+        let newCamera = new OrbitCamera(input);
+        newCamera.fov = camera.fov;
+        camera = newCamera;
+        cameraIsOrbit = true;
+    }
+
+    if (index == 9) {
+        camera.changeTarget(sun.geometry);
+    }
+    else {
+        camera.changeTarget(planets[index].geometry);
     }
 }

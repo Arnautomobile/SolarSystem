@@ -1,8 +1,8 @@
 class Sphere {
-    constructor(gl, sphere, scale) {
+    constructor(gl, geometryJSON, scaleMatrix) {
         this.gl = gl;
-        this.geometry = new Geometry(gl, new Matrix4(), new Matrix4(), scale);
-        this.geometry.create(sphere);
+        this.geometry = new Geometry(gl, new Matrix4(), new Matrix4(), scaleMatrix);
+        this.geometry.create(geometryJSON);
     }
 
     render(shaderProgram) {
@@ -14,43 +14,57 @@ class Sphere {
 
 class Sun extends Sphere {
     constructor(gl, assets) {
-        super(gl, assets.sphereJSON, new Matrix4().makeScale(0.05, 0.05, 0.05));
+        super(gl, assets.sphereJSON, new Matrix4().makeScale(0.1, 0.1, 0.1));
+
         this.material = new Material(gl, Color.white, 1, assets.sun);
+        this.axialRotation = new Matrix4().makeRotationX(7);
+        this.revolutionSpeed = rotationSpeed(27);
     }
 
-    render(shaderProgram) {
-        this.material.sendUniforms(this.gl, shaderProgram.uniforms);
-        this.geometry.render(shaderProgram);
+    update(time) {
+        const revolutionAngle = time * this.revolutionSpeed;
+        const revolution = new Matrix4().makeRotationY(revolutionAngle);
+        this.geometry.rotation = this.axialRotation.clone().multiply(revolution);
     }
 }
 
 
 class Planet extends Sphere {
-    constructor(gl, sphere, scale, distance = 5, orbitSpeed = 1, revolutionSpeed = 1, texture = null, normalMap = null, specularMap = null) {
-        super(gl, sphere, scale);
+    constructor(gl, sphere, scale = 0.02, distance = 10, axialTilt = 0, orbitSpeed = 10, revolutionSpeed = 5, texture = null, normalMap = null, specularMap = null) {
+        super(gl, sphere, new Matrix4().makeScale(scale, scale, scale));
 
         this.distance = distance;
         this.orbitSpeed = orbitSpeed;
         this.revolutionSpeed = revolutionSpeed;
+        this.axialRotation = new Matrix4().makeRotationX(axialTilt);
 
         this.material = new Material(gl, Color.white, 1, texture, normalMap, specularMap);
     }
 
-    update(seconds) {
-        let orbitAngle = seconds * this.orbitSpeed
+    update(time) {
+        const orbitAngle = (time * this.orbitSpeed) * Math.PI / 180;
         this.geometry.translation = new Matrix4().makeTranslation(this.distance * Math.cos(orbitAngle),
                                                                 0, this.distance * Math.sin(orbitAngle));
-        let revolutionAngle = seconds * this.revolutionSpeed;
-        this.geometry.rotation = new Matrix4().makeRotationY(revolutionAngle);
-    }
-
-    render(shaderProgram) {
-        this.material.sendUniforms(this.gl, shaderProgram.uniforms);
-        this.geometry.render(shaderProgram);
+        const revolutionAngle = time * this.revolutionSpeed;
+        const revolution = new Matrix4().makeRotationY(revolutionAngle);
+        this.geometry.rotation = this.axialRotation.clone().multiply(revolution);
     }
 }
 
 
 class Moon extends Planet {
+    constructor(gl, sphere, planetGeometry, scale = 0.02, distance = 10, axialTilt = 0, orbitSpeed = 10, revolutionSpeed = 5, texture = null, normalMap = null, specularMap = null) {
+        super(gl, sphere, scale, distance, axialTilt, orbitSpeed, revolutionSpeed, texture, normalMap, specularMap);
+        this.planetGeometry = planetGeometry;
+    }
 
+    update(time) {
+        const orbitAngle = (time * this.orbitSpeed) * Math.PI / 180;
+        const orbit = new Matrix4().makeTranslation(this.distance * Math.cos(orbitAngle), 0, this.distance * Math.sin(orbitAngle));
+        this.geometry.translation = orbit.multiply(this.planetGeometry.translation);
+
+        const revolutionAngle = time * this.revolutionSpeed;
+        const revolution = new Matrix4().makeRotationY(revolutionAngle);
+        this.geometry.rotation = this.axialRotation.clone().multiply(revolution);
+    }
 }

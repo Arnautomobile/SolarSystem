@@ -54,6 +54,16 @@ class Input {
             case "f": this.f = true; break;
             case "t": this.t = true; break;
             case "g": this.g = true; break;
+            case "1": changePlanet(0); break;
+            case "2": changePlanet(1); break;
+            case "3": changePlanet(2); break;
+            case "4": changePlanet(3); break;
+            case "5": changePlanet(4); break;
+            case "6": changePlanet(5); break;
+            case "7": changePlanet(6); break;
+            case "8": changePlanet(7); break;
+            case "9": changePlanet(8); break;
+            case "0": changePlanet(9); break;
         }
     }
 

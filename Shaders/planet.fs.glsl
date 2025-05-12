@@ -1,8 +1,6 @@
 precision mediump float;
 
-uniform vec3 uLightPosition;
 uniform vec3 uCameraPosition;
-
 uniform sampler2D uTexture;
 uniform sampler2D uNormalMap;
 uniform sampler2D uSpecularMap;
@@ -26,7 +24,7 @@ void main(void) {
         N = TBN * texNormal;
     }
 
-    vec3 L = normalize(uLightPosition - vWorldPosition);
+    vec3 L = normalize(- vWorldPosition);
     vec3 V = normalize(uCameraPosition - vWorldPosition);
     float diffuse = max(dot(N, L), 0.0);
     float specular = 0.0;

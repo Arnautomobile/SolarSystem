@@ -3,6 +3,8 @@ class Vector4 {
         this.set(x, y, z, w);
     }
 
+    static up = new Vector4(0,1,0,0);
+
     //----------------------------------------------------------------------------- 
     set(x, y, z, w) {
         this.x = Number.isFinite(x) ? x : 0;

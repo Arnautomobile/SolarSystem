@@ -1,14 +1,16 @@
 class OrbitCamera {
-    constructor(input) {
-        this.input = input;
+    constructor(input, targetGeometry = null) {
         this.fov = 45;
         this.yaw = 0;
         this.pitch = -45;
-        this.zoomScale = 1;
-        this.minDistance = 1;
-        this.maxDistance = 30;
+        this.speed = 0.5;
+        this.zoomScale = 0.5;
+        this.baseMinDistance = 80;
+        this.baseMaxDistance = 1000;
+
+        this.input = input;
         this.worldMatrix = new Matrix4();
-        this.target = new Vector4(0, 0, 0, 1);
+        this.changeTarget(targetGeometry);
 
         let lastMouseX = 0;
         let lastMouseY = 0;
@@ -17,7 +19,7 @@ class OrbitCamera {
 
         // ---------------------------------------------------------------------
         document.onmousedown = (evt) => {
-            if (evt.button == 0) {
+            if (evt.button != 0) {
                 isDragging = true;
                 lastMouseX = evt.pageX;
                 lastMouseY = evt.pageY;
@@ -30,8 +32,8 @@ class OrbitCamera {
         document.onmousemove = (evt) => {
             if (!isDragging) return;
 
-            this.yaw -= (evt.pageX - lastMouseX) * 0.5;
-            this.pitch -= (evt.pageY - lastMouseY) * 0.5;
+            this.yaw -= (evt.pageX - lastMouseX) * this.speed;
+            this.pitch -= (evt.pageY - lastMouseY) * this.speed;
             this.pitch = Math.min(this.pitch, 85);
             this.pitch = Math.max(this.pitch, -85);
 
@@ -40,7 +42,7 @@ class OrbitCamera {
         }
 
         document.onmousewheel = (evt) => {
-            this.zoomScale -= evt.wheelDelta * 0.001;
+            this.zoomScale -= evt.wheelDelta * 0.0003;
             this.zoomScale = Math.min(this.zoomScale, 1);
             this.zoomScale = Math.max(this.zoomScale, 0);
         }
@@ -69,6 +71,9 @@ class OrbitCamera {
 
     // -----------------------------------------------------------------------------
     update(deltaTime) {
+        this.speedInput(deltaTime);
+        this.fovInput(deltaTime * 30);
+
         const tether = new Vector4(0, 0, this.minDistance + (this.maxDistance - this.minDistance) * this.zoomScale, 0);
         const yaw = new Matrix4().makeRotationY(this.yaw);
         const pitch = new Matrix4().makeRotationX(this.pitch);
@@ -76,19 +81,15 @@ class OrbitCamera {
         let transformedTether = pitch.multiplyVector(tether);
         transformedTether = yaw.multiplyVector(transformedTether);
 
-        const position = this.target.clone().add(transformedTether);
-        this.lookAt(position, new Vector4(0, 0, 0, 1));
-
-        this.fovInput(deltaTime * 30);
+        const targetPos = this.targetGeometry.getPosition();
+        const position = targetPos.clone().add(transformedTether);
+        this.lookAt(position, targetPos);
     }
 
 
     lookAt(eyePos, targetPos) {
-        const worldUp = new Vector4(0, 1, 0, 0);
-        this.worldMatrix.makeIdentity();
-
-        const forward = targetPos.clone().subtract(eyePos).normalize();
-        const right = Vector4.cross(forward, worldUp).normalize();
+        const forward = targetPos.subtract(eyePos).normalize();
+        const right = Vector4.cross(forward, Vector4.up).normalize();
         const up = Vector4.cross(right, forward);
 
         const e = this.worldMatrix.elements;
@@ -98,6 +99,23 @@ class OrbitCamera {
         e[12] = 0; e[13] = 0; e[14] = 0; e[15] = 1;
 
         return this;
+    }
+
+
+    // -----------------------------------------------------------------------------
+    speedInput(increment) {
+        if (this.input.r) {
+            this.speed += increment;
+            if (this.speed > 0.8) {
+                this.speed = 0.8;
+            }
+        }
+        if (this.input.f) {
+            this.speed -= increment;
+            if (this.speed < 0.1) {
+                this.speed = 0.1;
+            }
+        }
     }
 
     fovInput(increment) {
@@ -113,5 +131,15 @@ class OrbitCamera {
                 this.fov = 150;
             }
         }
+        updateFovDisplay();
+    }
+
+
+    changeTarget(targetGeometry) {
+        this.targetGeometry = targetGeometry;
+        if (targetGeometry == null) return;
+
+        this.minDistance = this.baseMinDistance * targetGeometry.getScale();
+        this.maxDistance = this.baseMaxDistance * targetGeometry.getScale();
     }
 }

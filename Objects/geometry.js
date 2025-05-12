@@ -16,6 +16,10 @@ class Geometry {
         return new Vector4(e[3], e[7], e[11], 1);
     }
 
+    getScale() {
+        return this.scale.elements[0];
+    }
+
 
     // -----------------------------------------------------------------------------
     create(jsonFileData) {
