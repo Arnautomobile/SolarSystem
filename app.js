@@ -30,11 +30,14 @@ function updateFovDisplay() {
     fovDisplay.textContent = fov;
 }
 
+let skyboxBuffer;
+let skyboxTexture;
 
 let gl;
 let sun;
 let sunShaderProgram;
 let planetShaderProgram;
+let skyboxShaderProgram;
 let changedCamera = false;
 let cameraIsOrbit = true;
 
@@ -46,8 +49,18 @@ const assetList = [
     { name: 'planetTextFS', url: './Shaders/planet.fs.glsl', type: 'text' },
     { name: 'sunTextVS', url: './Shaders/sun.vs.glsl', type: 'text' },
     { name: 'sunTextFS', url: './Shaders/sun.fs.glsl', type: 'text' },
+    { name: 'skyboxTextVS', url: './Shaders/skybox.vs.glsl', type: 'text' },
+    { name: 'skyboxTextFS', url: './Shaders/skybox.fs.glsl', type: 'text' },
+    
     { name: 'sphereJSON', url: './Data/sphere.json', type: 'json' },
     { name: 'waterNormalMap', url: './Data/waterNormalMap.jpeg', type: 'image' },
+    { name: 'skybox_px', url: './Data/SkyboxFaces/GalaxyTex_PositiveX.png', type: 'image' },
+    { name: 'skybox_nx', url: './Data/SkyboxFaces/GalaxyTex_NegativeX.png', type: 'image' },
+    { name: 'skybox_py', url: './Data/SkyboxFaces/GalaxyTex_PositiveY.png', type: 'image' },
+    { name: 'skybox_ny', url: './Data/SkyboxFaces/GalaxyTex_NegativeY.png', type: 'image' },
+    { name: 'skybox_pz', url: './Data/SkyboxFaces/GalaxyTex_PositiveZ.png', type: 'image' },
+    { name: 'skybox_nz', url: './Data/SkyboxFaces/GalaxyTex_NegativeZ.png', type: 'image' },
+
     { name: 'sun', url: './Data/sun.jpg', type: 'image' },
     { name: 'mercury', url: './Data/mercury.jpg', type: 'image' },
     { name: 'venus', url: './Data/venus.jpg', type: 'image' },
@@ -57,13 +70,7 @@ const assetList = [
     { name: 'saturn', url: './Data/saturn.jpg', type: 'image' },
     { name: 'uranus', url: './Data/uranus.jpg', type: 'image' },
     { name: 'neptune', url: './Data/neptune.jpg', type: 'image' },
-    { name: 'moon', url: './Data/moon.png', type: 'image' },
-    { name: 'skybox_px', url: './Data/SkyboxFaces/GalaxyTex_PositiveX.png', type: 'image' },
-    { name: 'skybox_nx', url: './Data/SkyboxFaces/GalaxyTex_NegativeX.png', type: 'image' },
-    { name: 'skybox_py', url: './Data/SkyboxFaces/GalaxyTex_PositiveY.png', type: 'image' },
-    { name: 'skybox_ny', url: './Data/SkyboxFaces/GalaxyTex_NegativeY.png', type: 'image' },
-    { name: 'skybox_pz', url: './Data/SkyboxFaces/GalaxyTex_PositiveZ.png', type: 'image' },
-    { name: 'skybox_nz', url: './Data/SkyboxFaces/GalaxyTex_NegativeZ.png', type: 'image' }
+    { name: 'moon', url: './Data/moon.png', type: 'image' }
 ];
 
 
@@ -78,6 +85,9 @@ async function initialize() {
     createPlanetShaders();
     createSunShaders();
     createSkyboxShaders();
+
+    createSkyboxBuffers();
+    createSkyboxCubemap();
 
     createScene();
     updateAndRender();
@@ -132,23 +142,64 @@ function createSunShaders() {
 }
 
 function createSkyboxShaders() {
-    
+    const skyboxTextVS = assetLoader.assets.skyboxTextVS;
+    const skyboxTextFS = assetLoader.assets.skyboxTextFS;
+
+    skyboxShaderProgram = createShaderProgram(gl, skyboxTextVS, skyboxTextFS);
+
+    skyboxShaderProgram.attributes = {
+        position: gl.getAttribLocation(skyboxShaderProgram, "aPosition")
+    }
+    skyboxShaderProgram.uniforms = {
+        projectionMatrix: gl.getUniformLocation(skyboxShaderProgram, "uProjectionMatrix"),
+        viewMatrix: gl.getUniformLocation(skyboxShaderProgram, "uViewMatrix"),
+        skybox: gl.getUniformLocation(skyboxShaderProgram, "uSkybox")
+    }
 }
 
-function createSkyboxCubemap(gl, assets) {
-    const texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
 
-    const faceInfos = [
-        { target: gl.TEXTURE_CUBE_MAP_POSITIVE_X, image: assets.skybox_px },
-        { target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X, image: assets.skybox_nx },
-        { target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y, image: assets.skybox_py },
-        { target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, image: assets.skybox_ny },
-        { target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z, image: assets.skybox_pz },
-        { target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, image: assets.skybox_nz },
+function createSkyboxBuffers() {
+    const positions = new Float32Array([
+        -1, -1, -1,   1, -1, -1,   1,  1, -1,  -1,  1, -1,
+        -1, -1,  1,   1, -1,  1,   1,  1,  1,  -1,  1,  1
+    ]);
+
+    const indices = new Uint16Array([
+        0, 1, 2,  2, 3, 0, // back
+        4, 5, 6,  6, 7, 4, // front
+        3, 2, 6,  6, 7, 3, // top
+        0, 1, 5,  5, 4, 0, // bottom
+        1, 2, 6,  6, 5, 1, // right
+        0, 3, 7,  7, 4, 0  // left
+    ]);
+
+    skyboxBuffer = {
+        position: gl.createBuffer(),
+        indices: gl.createBuffer(),
+        count: indices.length
+    };
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, skyboxBuffer.position);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, skyboxBuffer.indices);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+}
+
+function createSkyboxCubemap() {
+    const faces = [
+        { target: gl.TEXTURE_CUBE_MAP_POSITIVE_X, image: assetLoader.assets.skybox_px },
+        { target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X, image: assetLoader.assets.skybox_nx },
+        { target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y, image: assetLoader.assets.skybox_py },
+        { target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, image: assetLoader.assets.skybox_ny },
+        { target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z, image: assetLoader.assets.skybox_pz },
+        { target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, image: assetLoader.assets.skybox_nz },
     ];
 
-    faceInfos.forEach((face) => {
+    skyboxTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_CUBE_MAP, skyboxTexture);
+
+    faces.forEach((face) => {
         gl.texImage2D(face.target, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, face.image);
     });
 
@@ -156,9 +207,8 @@ function createSkyboxCubemap(gl, assets) {
     gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-    return texture;
 }
+
 
 
 function rotationSpeed(days) {
@@ -212,10 +262,31 @@ function updateAndRender() {
     const viewMatrix = camera.getViewMatrix();
     projectionMatrix.makePerspective(camera.fov, gl.canvasWidth/gl.canvasHeight, 0.1, 1000);
 
+
     gl.viewport(0, 0, gl.canvasWidth, gl.canvasHeight);
     gl.clearColor(0.1, 0.1, 0.1, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    
+    
+    // -------------------------------------------------------------------------------------------
+    gl.depthFunc(gl.LEQUAL);
+    gl.useProgram(skyboxShaderProgram);
 
+    gl.uniformMatrix4fv(skyboxShaderProgram.uniforms.viewMatrix, false, viewMatrix.clone().transpose().elements);
+    gl.uniformMatrix4fv(skyboxShaderProgram.uniforms.projectionMatrix, false, projectionMatrix.clone().transpose().elements);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, skyboxBuffer.position);
+    gl.enableVertexAttribArray(skyboxShaderProgram.attributes.position);
+    gl.vertexAttribPointer(skyboxShaderProgram.attributes.position, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, skyboxBuffer.indices);
+    
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_CUBE_MAP, skyboxTexture);
+    gl.uniform1i(skyboxShaderProgram.uniforms.skybox, 0);
+
+    gl.drawElements(gl.TRIANGLES, skyboxBuffer.count, gl.UNSIGNED_SHORT, 0);
+    gl.depthFunc(gl.LESS);
+    
 
     // -------------------------------------------------------------------------------------------
     gl.useProgram(sunShaderProgram);
