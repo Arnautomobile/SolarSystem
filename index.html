@@ -22,6 +22,8 @@
 <!-- Geometry -->
 <script src="Objects/geometry.js"></script>
 <script src="Objects/material.js"></script>
+<script src="Objects/quad.js"></script>
+<script src="Objects/cube.js"></script>
 <script src="Objects/astronomicalObjects.js"></script>
 
 
@@ -77,9 +79,9 @@
 
     <div class="slider-container">
         <div class="value-label">
-            1 sec = <span id="timeValue">0</span>
+            1 sec = <span id="timeValue">1 day</span>
         </div>
-        <input type="range" id="timeSlider" min="0" max="100" step="0.2" value="1" />
+        <input type="range" id="timeSlider" min="0" max="300" step="1" value="1" />
 
         <div class="value-label">
             FOV : <span id="fovValue">45</span>

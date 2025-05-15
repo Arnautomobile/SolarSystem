@@ -1,11 +1,10 @@
 precision mediump float;
 
-uniform vec3 uCameraPosition;
 uniform sampler2D uTexture;
 uniform sampler2D uNormalMap;
-uniform sampler2D uSpecularMap;
+uniform sampler2D uFlowMap;
 uniform int uHasNormalMap;
-uniform int uHasSpecularMap;
+uniform int uHasFlowMap;
 
 varying vec2 vTexCoord;
 varying vec3 vWorldPosition;
@@ -25,15 +24,12 @@ void main(void) {
     }
 
     vec3 L = normalize(- vWorldPosition);
-    vec3 V = normalize(uCameraPosition - vWorldPosition);
     float diffuse = max(dot(N, L), 0.0);
-    float specular = 0.0;
 
-    if (uHasSpecularMap == 1) {
-        vec3 H = normalize(L + V);
-        specular = pow(max(dot(N, H), 0.0), 32.0);
+    if (uHasFlowMap == 1) {
+        
     }
 
-    vec3 finalColor = diffuse * albedo + specular * vec3(0.5);
+    vec3 finalColor = diffuse * albedo;
     gl_FragColor = vec4(finalColor, 0.0);
 }

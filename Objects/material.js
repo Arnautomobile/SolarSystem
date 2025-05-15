@@ -1,16 +1,19 @@
 class Material {
-    constructor(gl, color = Color.black, alpha = 1, texture = null, normalMap = null, specularMap = null) {
+    constructor(gl, color = Color.black, alpha = 1, texture1 = null, texture2 = null, texture3 = null) {
         this.color = color;
         this.alpha = alpha;
 
-        this.texture = setupTexture(gl, texture);
-        this.hasTexture = this.texture !== null;
+        this.texture1 = setupTexture(gl, texture1);
+        // base map
+        this.hasTex1 = this.texture1 !== null;
 
-        this.normalMap = setupTexture(gl, normalMap);
-        this.hasNormalMap = this.normalMap !== null;
+        this.texture2 = setupTexture(gl, texture2);
+        // can be specular or flow map
+        this.hasTex2 = this.texture2 !== null;
 
-        this.specularMap = setupTexture(gl, specularMap);
-        this.hasSpecularMap = this.specularMap !== null;
+        this.texture3 = setupTexture(gl, texture3);
+        // normal map or night texture in earth shader
+        this.hasTex3 = this.texture3 !== null;
     }
 
     
@@ -23,16 +26,16 @@ class Material {
             gl.uniform3f(uniforms.color, this.color.r, this.color.g, this.color.b);
         }
 
-        if (uniforms.texture !== undefined && this.hasTexture) {
+        if (uniforms.texture !== undefined && this.hasTex1) {
             gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, this.texture);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture1);
             gl.uniform1i(uniforms.texture, 0);
         }
 
         if (uniforms.normalMap !== undefined) {
-            if (this.hasNormalMap) {
+            if (this.hasTex2) {
                 gl.activeTexture(gl.TEXTURE1);
-                gl.bindTexture(gl.TEXTURE_2D, this.normalMap);
+                gl.bindTexture(gl.TEXTURE_2D, this.texture2);
                 gl.uniform1i(uniforms.normalMap, 1);
                 gl.uniform1i(uniforms.hasNormalMap, 1);
             }
@@ -41,16 +44,28 @@ class Material {
             }
         }
 
-        if (uniforms.specularMap !== undefined) {
-            if (this.hasSpecularMap) {
+        if (uniforms.specularMap !== undefined && this.hasTex2) {
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture2);
+            gl.uniform1i(uniforms.specularMap, 1);
+        }
+
+        if (uniforms.flowMap !== undefined) {
+            if (this.hasTex3) {
                 gl.activeTexture(gl.TEXTURE2);
-                gl.bindTexture(gl.TEXTURE_2D, this.specularMap);
-                gl.uniform1i(uniforms.specularMap, 2);
-                gl.uniform1i(uniforms.hasSpecularMap, 1);
+                gl.bindTexture(gl.TEXTURE_2D, this.texture3);
+                gl.uniform1i(uniforms.flowMap, 2);
+                gl.uniform1i(uniforms.hasFlowMap, 1);
             }
             else {
-                gl.uniform1i(uniforms.hasSpecularMap, 0);
+                gl.uniform1i(uniforms.hasFlowMap, 0);
             }
+        }
+
+        if (uniforms.textureNight !== undefined && this.hasTex3) {
+            gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture3);
+            gl.uniform1i(uniforms.textureNight, 2);
         }
     }
 }

@@ -18,7 +18,7 @@ class Sun extends Sphere {
 
         this.material = new Material(gl, Color.white, 1, assets.sun);
         this.axialRotation = new Matrix4().makeRotationX(7);
-        this.revolutionSpeed = rotationSpeed(27);
+        this.revolutionSpeed = rotSpeed(27);
     }
 
     update(time) {
@@ -30,7 +30,7 @@ class Sun extends Sphere {
 
 
 class Planet extends Sphere {
-    constructor(gl, sphere, scale = 0.02, distance = 10, axialTilt = 0, orbitSpeed = 10, revolutionSpeed = 5, texture = null, normalMap = null, specularMap = null) {
+    constructor(gl, sphere, scale = 0.02, distance = 10, axialTilt = 0, orbitSpeed = 10, revolutionSpeed = 5, texture1 = null, texture2 = null, texture3 = null) {
         super(gl, sphere, new Matrix4().makeScale(scale, scale, scale));
 
         this.distance = distance;
@@ -38,11 +38,11 @@ class Planet extends Sphere {
         this.revolutionSpeed = revolutionSpeed;
         this.axialRotation = new Matrix4().makeRotationX(axialTilt);
 
-        this.material = new Material(gl, Color.white, 1, texture, normalMap, specularMap);
+        this.material = new Material(gl, Color.white, 1, texture1, texture2, texture3);
     }
 
     update(time) {
-        const orbitAngle = (time * this.orbitSpeed) * Math.PI / 180;
+        const orbitAngle = time * this.orbitSpeed * Math.PI / 180;
         this.geometry.translation = new Matrix4().makeTranslation(this.distance * Math.cos(orbitAngle),
                                                                 0, this.distance * Math.sin(orbitAngle));
         const revolutionAngle = time * this.revolutionSpeed;
@@ -53,13 +53,13 @@ class Planet extends Sphere {
 
 
 class Moon extends Planet {
-    constructor(gl, sphere, planetGeometry, scale = 0.02, distance = 10, axialTilt = 0, orbitSpeed = 10, revolutionSpeed = 5, texture = null, normalMap = null, specularMap = null) {
-        super(gl, sphere, scale, distance, axialTilt, orbitSpeed, revolutionSpeed, texture, normalMap, specularMap);
+    constructor(gl, sphere, planetGeometry, scale = 0.02, distance = 10, axialTilt = 0, orbitSpeed = 10, revolutionSpeed = 5, texture1 = null, texture2 = null, texture3 = null) {
+        super(gl, sphere, scale, distance, axialTilt, orbitSpeed, revolutionSpeed, texture1, texture2, texture3);
         this.planetGeometry = planetGeometry;
     }
 
     update(time) {
-        const orbitAngle = (time * this.orbitSpeed) * Math.PI / 180;
+        const orbitAngle = time * this.orbitSpeed * Math.PI / 180;
         const orbit = new Matrix4().makeTranslation(this.distance * Math.cos(orbitAngle), 0, this.distance * Math.sin(orbitAngle));
         this.geometry.translation = orbit.multiply(this.planetGeometry.translation);
 
