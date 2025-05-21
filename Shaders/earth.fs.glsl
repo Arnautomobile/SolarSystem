@@ -5,11 +5,9 @@ uniform sampler2D uTextureDay;
 uniform sampler2D uSpecularMap;
 uniform sampler2D uTextureNight;
 
-varying vec2 vTexCoord;
 varying vec3 vWorldPosition;
+varying vec2 vTexCoord;
 varying vec3 vNormal;
-varying vec3 vTangent;
-varying vec3 vBitangent;
 
 
 void main(void) {

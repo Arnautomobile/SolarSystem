@@ -44,6 +44,7 @@ let sunShaderProgram;
 let earthShaderProgram;
 let planetShaderProgram;
 let skyboxShaderProgram;
+let transparencyShaderProgram;
 
 const planets = [];
 const transparency = []; // for rings and atmosphere
@@ -52,10 +53,13 @@ const assetList = [
     { name: 'planetTextVS', url: './Shaders/planet.vs.glsl', type: 'text' },
     { name: 'planetTextFS', url: './Shaders/planet.fs.glsl', type: 'text' },
     { name: 'earthTextFS', url: './Shaders/earth.fs.glsl', type: 'text' },
+    { name: 'earthTextVS', url: './Shaders/earth.vs.glsl', type: 'text' },
     { name: 'sunTextVS', url: './Shaders/sun.vs.glsl', type: 'text' },
     { name: 'sunTextFS', url: './Shaders/sun.fs.glsl', type: 'text' },
     { name: 'skyboxTextVS', url: './Shaders/skybox.vs.glsl', type: 'text' },
     { name: 'skyboxTextFS', url: './Shaders/skybox.fs.glsl', type: 'text' },
+    { name: 'transparencyTextVS', url: './Shaders/transparency.vs.glsl', type: 'text'},
+    { name: 'transparencyTextFS', url: './Shaders/transparency.fs.glsl', type: 'text'},
     
     { name: 'sphereJSON', url: './Data/sphere.json', type: 'json' },
     { name: 'waterNormalMap', url: './Data/waterNormalMap.jpeg', type: 'image' },
@@ -92,6 +96,7 @@ async function initialize() {
     createSunShaders();
     createEarthShaders();
     createPlanetShaders();
+    createTransparencyShaders();
 
     createSkyboxShaders();
     createSkyboxBuffers();
@@ -123,7 +128,7 @@ function createSunShaders() {
 }
 
 function createEarthShaders() {
-    const earthVS = assetLoader.assets.planetTextVS;
+    const earthVS = assetLoader.assets.earthTextVS;
     const earthFS = assetLoader.assets.earthTextFS;
 
     earthShaderProgram = createShaderProgram(gl, earthVS, earthFS);
@@ -132,8 +137,6 @@ function createEarthShaders() {
         vertexPosition: gl.getAttribLocation(earthShaderProgram, "aVertexPosition"),
         vertexTexCoord: gl.getAttribLocation(earthShaderProgram, "aTexCoord"),
         vertexNormal: gl.getAttribLocation(earthShaderProgram, "aNormal"),
-        vertexTangent: gl.getAttribLocation(earthShaderProgram, "aTangent"),
-        vertexBitangent: gl.getAttribLocation(earthShaderProgram, "aBitangent")
     };
 
     earthShaderProgram.uniforms = {
@@ -169,6 +172,27 @@ function createPlanetShaders() {
         flowMap: gl.getUniformLocation(planetShaderProgram, "uFlowMap"),
         hasNormalMap: gl.getUniformLocation(planetShaderProgram, "uHasNormalMap"),
         hasFlowMap: gl.getUniformLocation(planetShaderProgram, "uHasFlowMap")
+    };
+}
+
+function createTransparencyShaders() {
+    const transparencyVS = assetLoader.assets.transparencyTextVS;
+    const transparencyFS = assetLoader.assets.transparencyTextFS;
+
+    transparencyShaderProgram = createShaderProgram(gl, transparencyVS, transparencyFS);
+
+    transparencyShaderProgram.attributes = {
+        vertexPosition: gl.getAttribLocation(transparencyShaderProgram, "aVertexPosition"),
+        vertexTexCoord: gl.getAttribLocation(transparencyShaderProgram, "aTexCoord"),
+        vertexNormal: gl.getAttribLocation(transparencyShaderProgram, "aNormal"),
+    };
+
+    transparencyShaderProgram.uniforms = {
+        worldMatrix: gl.getUniformLocation(transparencyShaderProgram, "uWorldMatrix"),
+        viewMatrix: gl.getUniformLocation(transparencyShaderProgram, "uViewMatrix"),
+        projectionMatrix: gl.getUniformLocation(transparencyShaderProgram, "uProjectionMatrix"),
+        texture: gl.getUniformLocation(transparencyShaderProgram, "uTexture"),
+        alpha: gl.getUniformLocation(transparencyShaderProgram, "uAlpha"),
     };
 }
 
@@ -274,8 +298,8 @@ function createScene() {
     let moon = new Moon(gl, sphere, earth.geometry, 0.008, 3, 7, rotSpeed(27), rotSpeed(-27), assets.moon);
     planets.push(moon);
 
-    //quad = new Quad(gl, new Matrix4().makeTranslation(0, -1, 0), new Matrix4().makeRotationX(90), new Matrix4().makeScale(10,10,10));
-    //quad.create();
+    let saturnRings = new Rings(gl, saturn.geometry, new Matrix4().makeScale(3,3,3), saturn.axialRotation, assets.waterNormalMap, 0.7);
+    transparency.push(saturnRings);
 }
 
 
@@ -285,8 +309,12 @@ function updateAndRender() {
 
     sun.update(time.seconds);
     earth.update(time.seconds);
+
     planets.forEach(planet => {
         planet.update(time.seconds);
+    });
+    transparency.forEach(object => {
+        object.update(time.seconds);
     });
     
     manageCamera();
@@ -352,9 +380,15 @@ function updateAndRender() {
     });
 
 
-    // Use for atmospheres :
+    // Use for atmospheres and rings :
 
-    /*gl.enable(gl.CULL_FACE);
+    gl.useProgram(transparencyShaderProgram);
+    uniforms = transparencyShaderProgram.uniforms;
+
+    gl.uniformMatrix4fv(uniforms.viewMatrix, false, viewMatrix.clone().transpose().elements);
+    gl.uniformMatrix4fv(uniforms.projectionMatrix, false, projectionMatrix.clone().transpose().elements);
+
+    gl.enable(gl.CULL_FACE);
     gl.cullFace(gl.BACK);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -366,11 +400,11 @@ function updateAndRender() {
     });
     
     sorted.forEach(element => {
-        element.render(planetShaderProgram);
+        element.render(transparencyShaderProgram);
     });
 
     gl.disable(gl.CULL_FACE);
-    gl.disable(gl.BLEND);*/
+    gl.disable(gl.BLEND);
 }
 
 
